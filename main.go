@@ -20,7 +20,7 @@ const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 func main(){
     router := mux.NewRouter()
-    router.HandleFunc("/", redirectHandler).Methods("GET")
+    router.HandleFunc("/{shortcode}", redirectHandler).Methods("GET")
     router.HandleFunc("/shorten", shortenURLHandler).Methods("POST")
 
     fmt.Println("Listening on port 8080...")
@@ -28,7 +28,8 @@ func main(){
 }
 
 func redirectHandler(w http.ResponseWriter, r *http.Request){
-    shortURL := r.URL.Path[1:]
+    var vars = mux.Vars(r)
+    shortURL := vars["shortcode"]
 
     urlStore.RLock()
     longURL, exists := urlStore.data[shortURL]
@@ -38,7 +39,7 @@ func redirectHandler(w http.ResponseWriter, r *http.Request){
         return
     }
 
-    http.Redirect(w,r,longURL, http.StatusFound)
+    fmt.Fprintf(w,"%v\n", longURL)
 }
 
 func generateShortCode() string{
@@ -49,12 +50,8 @@ func generateShortCode() string{
     return string(shortURL)
 }
 
-func shortenURLHandler(w http.ResponseWriter, r *http.Request){
-    longURL := r.URL.Query().Get("url") 
-    if longURL == "" {
-        http.Error(w, "Missing url parameter.", http.StatusBadRequest)
-        return
-    }
+func shortenURLHandler(w http.ResponseWriter, r *http.Request) {
+    longURL := r.URL.Query().Get("url")
 
     shortURL := generateShortCode() 
     urlStore.Lock()
@@ -62,8 +59,4 @@ func shortenURLHandler(w http.ResponseWriter, r *http.Request){
     urlStore.Unlock()
 
     fmt.Fprintf(w, "Short URL: http://localhost:8080/%s\n", shortURL)
-}
-
-func homeHandler(w http.ResponseWriter, r *http.Request){
-    w.Write([]byte("Hello World!"))
 }
